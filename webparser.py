@@ -47,7 +47,6 @@ class Parser:
             url = self.BASE_URL + product.get("url")
             combined_sku = url.split("/")[-1]
 
-            with open("a.html", "w", encoding="utf-8") as h:h.write(self.proxy_client.retry("GET", url).text)
             if html := bs(
                 self.proxy_client.retry("GET", url).text, 
                 "html.parser"
@@ -67,10 +66,16 @@ class Parser:
                 color_origin = unescape(html.select_one(Selectors.COLOR.value).text).strip()
                 color = COLORS.get(color_origin.title(), "не определено")
                 category = product.get("topLevelCategory").get("code")
-                images = list(
-                    product.get("images")[0].get("url").replace("1.jpg", f"{i}.jpg") 
-                    for i in range(1, len(html.select(Selectors.PRODUCT_IMAGE.value + ">div>img")) + 1)
-                )
+
+                images = []
+                if (main_image := product.get("images")[0].get("url")).endswith("P.jpg"): 
+                    images.append(main_image)
+                    ni = 0
+                else: ni = 1
+
+                image_url_template = re.sub(r"\d*\.jpg", "", main_image)
+                for i in range(1, len(html.select(Selectors.PRODUCT_IMAGE.value + ">div>img")) + ni):
+                    images.append(image_url_template + f"{i}.jpg")
 
                 for n, i in enumerate(html.select(Selectors.SIZE_LIST.value + ">li[aria-disabled='false']")):
                     size_data = i.select_one("span").text.strip().split("  ")
