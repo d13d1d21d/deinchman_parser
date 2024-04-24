@@ -1,5 +1,6 @@
 import requests
 import random
+
 from utils.utils import *
 from dataclasses import dataclass
 
@@ -30,7 +31,7 @@ class ProxyClient:
             **kwargs
         )
     
-    @debug("<ProxyClient.retry>: {debug_exc}", True)
+    @debug("{method} {url} - все попытки получить успешный ответ от сервера исчерпаны")
     def retry(
         self,
         method,
@@ -53,7 +54,7 @@ class ProxyClient:
                     return req
                 except requests.RequestException: continue
         
-        #raise requests.RequestException(f"All {self.retries} retries exhausted. Request failed")
+        raise requests.RequestException(f"All {self.retries} retries exhausted. Request failed")
 
 
             

@@ -2,10 +2,18 @@ from __future__ import annotations
 import pandas as pd
 import re
 
+from logger import *
 from functools import wraps
 from inspect import signature
 from collections.abc import Callable
 
+
+logger = SimpleLogger(
+    "main.py",
+    datetime_to_str(datetime.now()).split()[0],
+    mode="a",
+    encoding="utf-8"
+)
 
 def debug(info: str, raise_exc: bool = False, **d_kwargs) -> any:
     def debug_wrapper(f: Callable[..., any]) -> any:
@@ -15,7 +23,11 @@ def debug(info: str, raise_exc: bool = False, **d_kwargs) -> any:
             except Exception as debug_exc:
                 sig = signature(f)
                 ba = sig.bind(*args, **kwargs)
-                print(info.format(debug_exc=debug_exc, **d_kwargs, **ba.arguments))
+                log_info = info.format(debug_exc=debug_exc, **d_kwargs, **ba.arguments)
+                print(log_info)
+
+                logger.log(LogType.ERROR, f"Method <{f.__name__}> \"{log_info}\"", exc=debug_exc)
+
                 if raise_exc: raise debug_exc
 
         return debug_wrapped

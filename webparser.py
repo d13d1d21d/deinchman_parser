@@ -1,6 +1,6 @@
 import re
-import json
 
+from colorama import Fore, Style
 from html import unescape
 from math import ceil
 from bs4 import BeautifulSoup as bs
@@ -16,7 +16,7 @@ class Parser:
         self.proxy_client = proxy_client
         self.per_page = per_page
 
-    @debug("get_brands", True)
+    @debug("Ошибка в парсинге брендов", True)
     def get_brands(self) -> list[str]:
         if html := bs(self.proxy_client.retry("GET", f"{self.BASE_URL}/damen-marken").text, "html.parser"):
             return list(
@@ -24,21 +24,21 @@ class Parser:
                 for i in html.select(Selectors.BRAND_LINK.value)
             )
         
-    @debug("get_n_products", True)
+    @debug("Ошибка в получении количества товаров для {brand}", True)
     def get_n_products(self, brand: str) -> int:
         return self.proxy_client.retry(
             "GET",
             f"{self.BASE_URL}/rest/v2/deichmann-de/products/search?query=:relevance:allCategoriesSEO:{brand}:distributionChannel:ONLINESHOP:inStockFlag:true:orCategoriesSEO:ws:&currentPage=1&pageSize=100&fields=FULL"
         ).json().get("pagination").get("totalResults")
     
-    @debug("get_products", True)
+    @debug("Ошибка в получении списка товаров для {brand}", True)
     def get_products(self, brand: str, page: int) -> list[dict[str, any]]:
         return self.proxy_client.retry(
             "GET",
             f"{self.BASE_URL}/rest/v2/deichmann-de/products/search?query=:relevance:allCategoriesSEO:{brand}:distributionChannel:ONLINESHOP:inStockFlag:true:orCategoriesSEO:ws:&currentPage={page}&pageSize=100&fields=FULL"
         ).json().get("products")
     
-    @debug("")
+    @debug("Ошибка в парсинге товара {product}")
     def get_product_data(self, product: dict[str, any]) -> list[ProductData]:
         v = []
         price = float(product.get("allPrices")[0].get("value"))
@@ -47,7 +47,6 @@ class Parser:
             url = self.BASE_URL + product.get("url")
             combined_sku = url.split("/")[-1]
 
-            with open("a.html", "w", encoding="utf-8") as h:h.write(self.proxy_client.retry("GET", url).text)
             if html := bs(
                 self.proxy_client.retry("GET", url).text, 
                 "html.parser"
@@ -67,10 +66,16 @@ class Parser:
                 color_origin = unescape(html.select_one(Selectors.COLOR.value).text).strip()
                 color = COLORS.get(color_origin.title(), "не определено")
                 category = product.get("topLevelCategory").get("code")
-                images = list(
-                    product.get("images")[0].get("url").replace("1.jpg", f"{i}.jpg") 
-                    for i in range(1, len(html.select(Selectors.PRODUCT_IMAGE.value + ">div>img")) + 1)
-                )
+
+                images = []
+                if (main_image := product.get("images")[0].get("url")).endswith("P.jpg"): 
+                    images.append(main_image)
+                    ni = 0
+                else: ni = 1
+
+                image_url_template = re.sub(r"\d*\.jpg", "", main_image)
+                for i in range(1, len(html.select(Selectors.PRODUCT_IMAGE.value + ">div>img")) + ni):
+                    images.append(image_url_template + f"{i}.jpg")
 
                 for n, i in enumerate(html.select(Selectors.SIZE_LIST.value + ">li[aria-disabled='false']")):
                     size_data = i.select_one("span").text.strip().split("  ")
