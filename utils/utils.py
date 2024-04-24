@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 logger = SimpleLogger(
     "main.py",
-    datetime_to_str(datetime.now()).split()[0],
+    datetime_to_str(datetime.now()).split()[0] + ".txt",
     mode="a",
     encoding="utf-8"
 )
